@@ -9,4 +9,91 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+require(dplyr)
+# Read in data
+data = read.csv("googleplaystore.csv")
+```
+
+# Cleaning the data
+
+```{r}
+# Remove + in Installs
+data$Installs = gsub("[+,]", replacement = "", x = data$Installs)
+
+# Remove app in row 10473 because data is in wrong columns (and is an insignificant app)
+bad_dat = data[10473,]
+data = data[-10473,]
+
+# Making reviews column numeric
+data$Reviews = as.numeric(as.character(data$Reviews))
+
+# Making Installs column numeric
+data$Installs = as.numeric(data$Installs)
+
+# Making Installs column unit 1000
+data$Installs = data$Installs/1000
+
+# Formatting the date
+data$Last.Updated = as.Date(as.POSIXct(strptime(data$Last.Updated, "%B %d, %Y", tz="")))
+
+# Find out why apps have NA for a rating
+NA_apps = data[is.na(data$Rating),]
+
+```
+
+```{r}
+# Type in category of interest 
+category = "ART_AND_DESIGN"
+data_subset = data[data$Category == category,]
+
+# Show number of apps in this category
+num_apps = sum(data$Category == category)
+sprintf("Number of apps in this category is %d", num_apps)
+
+# Filter out apps that have not gotten an update within the last 3 months
+latestupdates = as.Date("2018-05-07")
+active_apps = data_subset[data_subset$Last.Updated > latestupdates,]
+```
+
+```{r}
+# Create a plot of the category by rating e.g. how many apps in each rating category...
+ratings = na.omit(data_subset) %>% count(Rating)
+bar_p1 = barplot(ratings$n, 
+                 names = ratings$Rating, 
+                 width = 5, 
+                 space = 1, 
+                 xlab = "Ratings", 
+                 ylab = "Number of Apps", 
+                 main = sprintf("Ratings for %s",category), 
+                 col="#69b3a2")
+```
+
+```{r}
+# Filter out apps with less than 200 reviews and plot category by rating e.g. reliable apps with a good rating
+reliable_apps = data_subset[data_subset$Reviews > 200 & data_subset$Rating >= 4.5,]
+reliable_apps = reliable_apps[order(reliable_apps$Rating, decreasing = TRUE),]
+
+# Get the top 10 reliable apps (by rating and only using apps with over 200 reviews)
+top_10 = reliable_apps[1:10,]
+top_10
+```
+
+```{r}
+# Get the top 10 apps by number of installations
+sorted_by_installations = data_subset[order(data_subset$Installs, decreasing = TRUE),]
+par(mar=c(4,17,4,4))
+bar_p2 = barplot(sorted_by_installations$Installs[1:10], 
+                 names = sorted_by_installations$App[1:10], 
+                 width = 5, 
+                 space = 1, 
+                 xlab = "Installations (1000s)", 
+                 main = sprintf("Top 10 by number Installations for %s",category), 
+                 las = 2, # Makes x axis labels turn 90 degrees
+                 horiz = T, 
+                 col="#69b3a2", 
+                 cex.names = 0.7, 
+                 cex.axis = 0.7, 
+                 cex.main = 0.8)
+```
 
